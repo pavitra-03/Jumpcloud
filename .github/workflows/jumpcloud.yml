@@ -1,0 +1,28 @@
+name: JumpCloud API Automation
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Runs daily at 02:00 UTC
+  workflow_dispatch:     # Allows manual trigger from GitHub UI
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run JumpCloud Script
+        env:
+          JUMPCLOUD_API_KEY: ${{ secrets.JUMPCLOUD_API_KEY }}
+          JUMPCLOUD_BASE_URL: "https://console.in.jumpcloud.com"
+        run: python data_generation_script.py
