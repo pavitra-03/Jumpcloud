@@ -32,7 +32,6 @@ HEADERS = {
 
 USER_COUNT = int(os.getenv("JC_USER_COUNT", "50"))
 POLICY_COUNT = int(os.getenv("JC_POLICY_COUNT", "10"))
-DELETE_COUNT = int(os.getenv("JC_DELETE_COUNT", "10"))
 POLICY_TEMPLATE_ID = os.getenv("JC_POLICY_TEMPLATE_ID", "69cda87f3d90b00001ab37d4")
 ALERT_WAIT_SECONDS = int(os.getenv("JC_ALERT_WAIT_SECONDS", "15"))
 
@@ -76,9 +75,12 @@ def request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
 def create_users() -> list:
     logger.info(f"--- Stage 1: Creating {USER_COUNT} users ---")
     created_users = []
+    
+    # Generate unique run ID using epoch timestamp to prevent email collisions
+    run_id = int(time.time())
 
     for i in range(1, USER_COUNT + 1):
-        username = f"api.auto.user{i:03d}"
+        username = f"api.auto.{run_id}.user{i:03d}"
         payload = {
             "username": username,
             "email": f"{username}@example.com",
@@ -147,11 +149,10 @@ def create_policies() -> list:
 # 3. DELETE USERS
 # ============================================================
 def delete_users(users: list) -> int:
-    logger.info(f"--- Stage 3: Deleting first {DELETE_COUNT} created users ---")
+    logger.info(f"--- Stage 3: Deleting all {len(users)} created users ---")
     deleted_count = 0
-    target_users = users[:DELETE_COUNT]
 
-    for user in target_users:
+    for user in users:
         user_id = user.get("id")
         username = user.get("username")
 
@@ -166,7 +167,7 @@ def delete_users(users: list) -> int:
 
         if response.status_code in (200, 204):
             deleted_count += 1
-            logger.info(f"[{deleted_count:02d}/{DELETE_COUNT}] Deleted user: {username}")
+            logger.info(f"[{deleted_count:02d}/{len(users)}] Deleted user: {username}")
         else:
             logger.error(f"Failed to delete {username} | Status: {response.status_code} | {response.text}")
 
@@ -220,7 +221,7 @@ def main():
         logger.error("No users created. Terminating sequence.")
         sys.exit(1)
 
-    logger.info(f"Pausing {ALERT_WAIT_SECONDS}s to allow event processing...")
+    logger.info(f"Pausing {ALERT_WAIT_SECONDS}s to allow user creation events to propagate...")
     time.sleep(ALERT_WAIT_SECONDS)
 
     create_policies()
